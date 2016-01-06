@@ -1,0 +1,163 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+var app = require('../app');
+var debug = require('debug')('dash:server');
+var http = require('http');
+var mysql = require("mysql");
+var redis = require("redis");
+var sub = redis.createClient();
+var client = redis.createClient();
+
+var pool = mysql.createPool({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'openiot'
+});
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || '3000');
+app.set('port', port);
+
+/**
+ * Create HTTP server.
+ */
+
+var server = http.createServer(app);
+
+io = require('socket.io').listen(server);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+function get_categ(fn) {
+    var ret = {};
+    var category = ["Phones", "TVs", "Mounts", "Cameras", "Players", "Covers", "Memory"];
+    var number = [];
+    var products = {};
+    client.hgetall('prodcnt:0', function (err, resp) {
+        for (var i = 0; i < category.length; i++) {
+            (function (i) {
+                number[i] = Number(resp[category[i]]) || 0;
+            })(i);
+        }
+        ret.category = category;
+        ret.number = number;
+        fn(ret);
+    });
+}
+
+server.listen(port, function () {
+    console.log("Server starts listening on port %s", port);
+});
+server.on('error', onError);
+server.on('listening', onListening);
+
+io.on('connection', function (socket) {
+    sub.on("subscribe", function (channel, count) {
+        pool.getConnection(function (err, connection) {
+            connection.query('SELECT COUNT(*) AS NumberOfInfo FROM device', function (err, count) {
+                if (err) throw err;
+                var numberOfInfo = count[0].NumberOfInfo;
+                var i = 0;
+                setInterval(function () {
+                    var sql = 'SELECT * from device limit ' + connection.escape(i) + ',1';
+                    connection.query(sql, function (err, rows, fields) {
+                        if (err) throw err;
+                        for (var j = 0; j < rows.length; j++) {
+                            var data = {};
+                            var tuple = JSON.parse(rows[j].tuple);
+                            if (tuple.measurements.battVol !== undefined && tuple.measurements.chargeVol !== undefined) {
+                                data.x = parseInt(tuple.metadata.timestamp * 1000);
+                                data.y = tuple.measurements.battVol;
+                                data.z = tuple.measurements.chargeVol;
+                                io.emit('vol', data);
+                            } else if (tuple.measurements.light !== undefined) {
+                                data.x = parseInt(tuple.metadata.timestamp * 1000);
+                                data.y = tuple.measurements.light;
+                                io.emit('light', data);
+                            } else if (tuple.measurements.humtemp !== undefined && tuple.measurements.humid !== undefined) {
+                                data.x = parseInt(tuple.metadata.timestamp * 1000);
+                                data.y = tuple.measurements.humtemp;
+                                data.z = tuple.measurements.humid;
+                                io.emit('hum', data);
+                            }
+                        }
+                        i++;
+                    });
+                }, 1000);
+            });
+            connection.release();
+        });
+
+    });
+    sub.subscribe("analytics");
+});
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val) {
+    var port = parseInt(val, 10);
+
+    if (isNaN(port)) {
+        // named pipe
+        return val;
+    }
+
+    if (port >= 0) {
+        // port number
+        return port;
+    }
+
+    return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error) {
+    if (error.syscall !== 'listen') {
+        throw error;
+    }
+
+    var bind = typeof port === 'string'
+        ? 'Pipe ' + port
+        : 'Port ' + port;
+
+    // handle specific listen errors with friendly messages
+    switch (error.code) {
+        case 'EACCES':
+            console.error(bind + ' requires elevated privileges');
+            process.exit(1);
+            break;
+        case 'EADDRINUSE':
+            console.error(bind + ' is already in use');
+            process.exit(1);
+            break;
+        default:
+            throw error;
+    }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+    var addr = server.address();
+    var bind = typeof addr === 'string'
+        ? 'pipe ' + addr
+        : 'port ' + addr.port;
+    debug('Listening on ' + bind);
+}

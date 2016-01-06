@@ -1,0 +1,251 @@
+extends layout
+
+block content
+    div(id='vol' style='min-width: 600px; height: 300px; margin: 0 auto')
+    div(id='hum' style='min-width: 600px; height: 300px; margin: 0 auto')
+    div(id='light' style='min-width: 600px; height: 300px; margin: 0 auto')
+
+    script(src="/socket.io/socket.io.js")
+    script(src="http://code.jquery.com/jquery-2.1.4.min.js")
+    script(src="http://code.highcharts.com/highcharts.js")
+    script.
+        $(document).ready(function () {
+            var socket = io('localhost:3000');
+            socket.on('connect', function () {
+                console.log('connected category');
+            });
+
+            $('#vol').highcharts({
+                chart: {
+                    type: 'spline',
+                    animation: Highcharts.svg, // don't animate in old IE
+                    marginRight: 10,
+                    events: {
+                        load: function () {
+                            var series0 = this.series[0];
+                            var series1 = this.series[1];
+                            socket.on('vol', function (vol) {
+                                series0.addPoint([vol.x, vol.y], true, true);
+                                series1.addPoint([vol.x, vol.z], true, true);
+                            });
+                        }
+                    }
+                },
+                title: {
+                    text: 'Vol data'
+                },
+                xAxis: {
+                    type: 'datetime',
+                    tickPixelInterval: 150
+                },
+                yAxis: {
+                    title: {
+                        text: 'Value'
+                    },
+                    plotLines: [{
+                        value: 0,
+                        width: 1,
+                        color: '#808080'
+                    }]
+                },
+                tooltip: {
+                    formatter: function () {
+                        return '<b>' + this.series.name + '</b><br/>' +
+                                Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
+                                Highcharts.numberFormat(this.y, 2);
+                    }
+                },
+                legend: {
+                    enabled: false
+                },
+                exporting: {
+                    enabled: true
+                },
+                series: [{
+                    name: 'Batt data',
+                    data: (function () {
+                        // generate an array of random data
+                        var data = [],
+                                today = new Date();
+                        today.setDate(today.getDate() - 11);
+                        var time = today.getTime();
+                        var i;
+
+                        for (i = -19; i <= 0; i += 1) {
+                            data.push({
+                                x: time + i * 1000,
+                                y: Math.random() + 4500
+                            });
+                        }
+                        return data;
+                    }())
+                }, {
+                    name: 'Charge data',
+                    data: (function () {
+                        // generate an array of random data
+                        var data = [],
+                                today = new Date();
+                        today.setDate(today.getDate() - 11);
+                        var time = today.getTime();
+                        var i;
+
+                        for (i = -19; i <= 0; i += 1) {
+                            data.push({
+                                x: time + i * 1000,
+                                y: Math.random() + 0
+                            });
+                        }
+                        return data;
+                    }())
+                }]
+            });
+
+            $('#hum').highcharts({
+                chart: {
+                    type: 'spline',
+                    animation: Highcharts.svg, // don't animate in old IE
+                    marginRight: 10,
+                    events: {
+                        load: function () {
+                            var series0 = this.series[0];
+                            var series1 = this.series[1];
+                            socket.on('hum', function (hum) {
+                                series0.addPoint([hum.x, hum.y], true, true);
+                                series1.addPoint([hum.x, hum.z], true, true);
+                            });
+                        }
+                    }
+                },
+                title: {
+                    text: 'Hum data'
+                },
+                xAxis: {
+                    type: 'datetime',
+                    tickPixelInterval: 150
+                },
+                yAxis: {
+                    title: {
+                        text: 'Value'
+                    },
+                    plotLines: [{
+                        value: 0,
+                        width: 1,
+                        color: '#808080'
+                    }]
+                },
+                tooltip: {
+                    formatter: function () {
+                        return '<b>' + this.series.name + '</b><br/>' +
+                                Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
+                                Highcharts.numberFormat(this.y, 2);
+                    }
+                },
+                legend: {
+                    enabled: false
+                },
+                exporting: {
+                    enabled: true
+                },
+                series: [{
+                    name: 'Humtemp data',
+                    data: (function () {
+                        // generate an array of random data
+                        var data = [],
+                                today = new Date();
+                        today.setDate(today.getDate() - 11);
+                        var time = today.getTime();
+                        var i;
+
+                        for (i = -19; i <= 0; i += 1) {
+                            data.push({
+                                x: time + i * 1000,
+                                y: Math.random() + 14.1
+                            });
+                        }
+                        return data;
+                    }())
+                }, {
+                    name: 'Humid data',
+                    data: (function () {
+                        // generate an array of random data
+                        var data = [],
+                                today = new Date();
+                        today.setDate(today.getDate() - 11);
+                        var time = today.getTime();
+                        var i;
+
+                        for (i = -19; i <= 0; i += 1) {
+                            data.push({
+                                x: time + i * 1000,
+                                y: Math.random() + 98.6
+                            });
+                        }
+                        return data;
+                    }())
+                }]
+            });
+
+            $('#light').highcharts({
+                chart: {
+                    type: 'spline',
+                    animation: Highcharts.svg, // don't animate in old IE
+                    marginRight: 10,
+                    events: {
+                        load: function () {
+                            var series = this.series[0];
+                            socket.on('light', function (light) {
+                                series.addPoint([light.x, light.y], true, true);
+                            });
+                        }
+                    }
+                },
+                title: {
+                    text: 'light data'
+                },
+                xAxis: {
+                    type: 'datetime',
+                    tickPixelInterval: 150
+                },
+                yAxis: {
+                    title: {
+                        text: 'Value'
+                    },
+                    plotLines: [{
+                        value: 0,
+                        width: 1,
+                        color: '#808080'
+                    }]
+                },
+                tooltip: {
+                    formatter: function () {
+                        return '<b>' + this.series.name + '</b><br/>' +
+                                Highcharts.dateFormat('%Y-%m-%d %H:%M:%S', this.x) + '<br/>' +
+                                Highcharts.numberFormat(this.y, 2);
+                    }
+                },
+                legend: {
+                    enabled: false
+                },
+                exporting: {
+                    enabled: true
+                },
+                series: [{
+                    name: 'light data',
+                    data: (function () {
+                        // generate an array of random data
+                        var data = [],
+                                today = new Date();
+                        today.setDate(today.getDate() - 11);
+                        var time = today.getTime();
+                        var i;
+                        return [time, 0];
+                    }())
+                }]
+            });
+
+            Highcharts.setOptions({
+                global: {
+                    useUTC: false
+                }
+            });
+        });
